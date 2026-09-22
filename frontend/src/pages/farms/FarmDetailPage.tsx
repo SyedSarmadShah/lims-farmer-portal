@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { getFarmByIdApi, deleteFarmApi } from '../../api/farms';
 import type { Farm } from '../../types/farm';
+import { FarmMap } from '../../components/map/FarmMap';
 
 
 export const FarmDetailPage: React.FC = () => {
@@ -213,32 +214,48 @@ export const FarmDetailPage: React.FC = () => {
             <Layers size={18} style={{ color: 'var(--brand-primary)' }} />
             <h3 style={{ margin: 0, fontSize: '1.1rem' }}>Farm Boundary & Map Geometry</h3>
           </div>
-          <span className="badge badge-info">Map Viewer - Next Step</span>
+          <span className="badge badge-success">
+            <CheckCircle2 size={12} /> Leaflet GIS Active
+          </span>
         </div>
         <div className="card-body">
           {hasBoundary ? (
             <div>
-              <p style={{ marginBottom: '1rem' }}>
-                GeoJSON polygon linear ring is recorded with{' '}
-                <strong>{farm.boundary?.coordinates[0].length}</strong> coordinate vertices.
-              </p>
-              <div
+              <div style={{ marginBottom: '1.25rem' }}>
+                <FarmMap
+                  initialBoundary={farm.boundary}
+                  readOnly={true}
+                  height={380}
+                />
+              </div>
+              <details
                 style={{
                   background: '#f8faf9',
                   border: '1px solid var(--border-subtle)',
-                  borderRadius: 'var(--radius-md)',
-                  padding: '1rem',
-                  fontFamily: 'var(--font-mono)',
-                  fontSize: '0.8125rem',
-                  maxHeight: '160px',
-                  overflowY: 'auto',
-                  color: 'var(--text-primary)',
+                  borderRadius: 'var(--radius-sm)',
+                  padding: '0.5rem 0.75rem',
+                  fontSize: '0.75rem',
                 }}
               >
-                <pre style={{ margin: 0 }}>
+                <summary style={{ cursor: 'pointer', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                  Inspect GeoJSON Coordinate Ring ({farm.boundary?.coordinates[0].length} vertices)
+                </summary>
+                <pre
+                  style={{
+                    margin: '0.5rem 0 0',
+                    padding: '0.5rem',
+                    backgroundColor: '#ffffff',
+                    border: '1px solid var(--border-subtle)',
+                    borderRadius: '4px',
+                    maxHeight: '160px',
+                    overflowY: 'auto',
+                    fontFamily: 'var(--font-mono)',
+                    color: 'var(--text-primary)',
+                  }}
+                >
                   {JSON.stringify(farm.boundary, null, 2)}
                 </pre>
-              </div>
+              </details>
             </div>
           ) : (
             <div className="boundary-preview-box">
@@ -247,7 +264,7 @@ export const FarmDetailPage: React.FC = () => {
                 No GeoJSON boundary polygon mapped yet
               </h4>
               <p style={{ maxWidth: '500px', fontSize: '0.875rem' }}>
-                Map rendering and interactive boundary drawing tools will be integrated using Leaflet in the next development phase.
+                No geospatial boundary has been outlined for this holding.
               </p>
             </div>
           )}

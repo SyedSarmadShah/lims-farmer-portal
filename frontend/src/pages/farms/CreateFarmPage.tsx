@@ -2,22 +2,26 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
   Trees,
-  Map,
   Save,
   ArrowLeft,
   AlertCircle,
   CheckCircle2,
-  Info,
+  MapPin,
 } from 'lucide-react';
 
 import { createFarmApi } from '../../api/farms';
+import { FarmMap } from '../../components/map/FarmMap';
+import type { GeoPolygon } from '../../types/farm';
+import { validateGeoPolygon } from '../../utils/geoUtils';
 
 export const CreateFarmPage: React.FC = () => {
   const navigate = useNavigate();
 
   const [name, setName] = useState('');
   const [location, setLocation] = useState('');
+  const [boundary, setBoundary] = useState<GeoPolygon | null>(null);
   const [nameError, setNameError] = useState<string | null>(null);
+  const [boundaryError, setBoundaryError] = useState<string | null>(null);
   const [generalError, setGeneralError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [createdSuccess, setCreatedSuccess] = useState(false);
@@ -25,10 +29,28 @@ export const CreateFarmPage: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setNameError(null);
+    setBoundaryError(null);
     setGeneralError(null);
+
+    let hasClientError = false;
 
     if (!name.trim()) {
       setNameError('Farm name is required.');
+      hasClientError = true;
+    }
+
+    if (!boundary) {
+      setBoundaryError('Please draw your farm boundary polygon on the map before saving.');
+      hasClientError = true;
+    } else {
+      const boundaryValidation = validateGeoPolygon(boundary);
+      if (!boundaryValidation.isValid) {
+        setBoundaryError(boundaryValidation.error || 'The drawn boundary polygon is invalid.');
+        hasClientError = true;
+      }
+    }
+
+    if (hasClientError) {
       return;
     }
 
@@ -37,7 +59,7 @@ export const CreateFarmPage: React.FC = () => {
       await createFarmApi({
         name: name.trim(),
         location: location.trim() || undefined,
-        boundary: null, // As specified: map/boundary is prepared for the next step
+        boundary: boundary,
       });
 
       setCreatedSuccess(true);
@@ -52,7 +74,15 @@ export const CreateFarmPage: React.FC = () => {
         const errorData = axiosError.response.data;
         if (errorData.name) {
           setNameError(Array.isArray(errorData.name) ? errorData.name.join(' ') : String(errorData.name));
-        } else {
+        }
+        if (errorData.boundary) {
+          setBoundaryError(
+            Array.isArray(errorData.boundary)
+              ? errorData.boundary.join(' ')
+              : String(errorData.boundary)
+          );
+        }
+        if (!errorData.name && !errorData.boundary) {
           setGeneralError(JSON.stringify(errorData));
         }
       } else {
@@ -166,7 +196,7 @@ export const CreateFarmPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Boundary / Leaflet Map Prepared Section */}
+            {/* Boundary / Leaflet Map Section */}
             <div style={{ marginTop: '2rem', marginBottom: '2rem' }}>
               <div
                 style={{
@@ -178,55 +208,91 @@ export const CreateFarmPage: React.FC = () => {
               >
                 <div>
                   <h4 style={{ fontSize: '1rem', color: 'var(--text-primary)', margin: 0 }}>
-                    Farm Boundary
+                    Farm Boundary Mapping <span style={{ color: 'var(--color-danger)' }}>*</span>
                   </h4>
                   <p style={{ fontSize: '0.8125rem', margin: 0 }}>
-                    GeoJSON linear ring polygon coordinate definition
+                    Outline the GIS polygon boundary around your agricultural holding parcel
                   </p>
                 </div>
-                <span className="badge badge-info">Next Step: GIS Map</span>
+                <span className="badge badge-success">
+                  <MapPin size={12} /> Interactive GIS
+                </span>
               </div>
 
-              {/* Prepared Placeholder Container */}
-              <div className="boundary-preview-box">
-                <div
-                  style={{
-                    width: '52px',
-                    height: '52px',
-                    borderRadius: '50%',
-                    backgroundColor: 'var(--bg-surface)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: 'var(--brand-primary)',
-                    boxShadow: 'var(--shadow-sm)',
-                  }}
-                >
-                  <Map size={26} />
-                </div>
-                <h4 style={{ color: 'var(--brand-primary)', margin: 0 }}>
-                  Map will be added in the next implementation step.
-                </h4>
-                <p style={{ maxWidth: '480px', margin: 0, fontSize: '0.875rem' }}>
-                  In the upcoming implementation step, an interactive Leaflet GIS map with drawing tools will allow you to pinpoint satellite coordinates and outline the polygon boundary of this farm.
-                </p>
-                <div
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '0.4rem',
-                    fontSize: '0.75rem',
-                    color: 'var(--text-secondary)',
-                    backgroundColor: '#ffffff',
-                    padding: '0.35rem 0.75rem',
-                    borderRadius: 'var(--radius-sm)',
-                    border: '1px solid var(--border-subtle)',
-                  }}
-                >
-                  <Info size={14} style={{ color: 'var(--color-info)' }} />
-                  <span>You can save the farm now and plot boundaries later.</span>
+              {/* Instructions Callout */}
+              <div
+                style={{
+                  backgroundColor: 'var(--brand-accent-tint)',
+                  border: '1px solid #bbf7d0',
+                  borderRadius: 'var(--radius-md)',
+                  padding: '0.75rem 1rem',
+                  marginBottom: '0.75rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.6rem',
+                  fontSize: '0.8125rem',
+                  color: 'var(--brand-primary)',
+                }}
+              >
+                <div style={{ fontWeight: 600 }}>Instructions:</div>
+                <div>
+                  Click <strong>Draw Polygon</strong> &rarr; Click corners around your land &rarr; Double-click or click first point to close &rarr; Save Farm.
                 </div>
               </div>
+
+              {/* Modular Leaflet Map Component */}
+              <FarmMap
+                initialBoundary={boundary}
+                onBoundaryChange={(newBoundary) => {
+                  setBoundary(newBoundary);
+                  if (boundaryError) setBoundaryError(null);
+                }}
+                height={460}
+              />
+
+              {boundaryError && (
+                <div
+                  className="alert alert-danger"
+                  style={{ marginTop: '0.75rem', marginBottom: '0.5rem' }}
+                >
+                  <AlertCircle size={16} />
+                  <span>{boundaryError}</span>
+                </div>
+              )}
+
+              {/* GeoJSON inspection accordion / debug viewer if boundary exists */}
+              {boundary && (
+                <div style={{ marginTop: '0.75rem' }}>
+                  <details
+                    style={{
+                      background: '#f8faf9',
+                      border: '1px solid var(--border-subtle)',
+                      borderRadius: 'var(--radius-sm)',
+                      padding: '0.5rem 0.75rem',
+                      fontSize: '0.75rem',
+                    }}
+                  >
+                    <summary style={{ cursor: 'pointer', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                      Inspect Generated GeoJSON Payload ({boundary.coordinates[0].length} coordinate vertices)
+                    </summary>
+                    <pre
+                      style={{
+                        margin: '0.5rem 0 0',
+                        padding: '0.5rem',
+                        backgroundColor: '#ffffff',
+                        border: '1px solid var(--border-subtle)',
+                        borderRadius: '4px',
+                        maxHeight: '140px',
+                        overflowY: 'auto',
+                        fontFamily: 'var(--font-mono)',
+                        color: 'var(--text-primary)',
+                      }}
+                    >
+                      {JSON.stringify(boundary, null, 2)}
+                    </pre>
+                  </details>
+                </div>
+              )}
             </div>
 
             {/* Action buttons */}

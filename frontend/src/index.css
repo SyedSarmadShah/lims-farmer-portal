@@ -941,6 +941,142 @@ a:hover {
 }
 
 /* =========================================================
+   GIS Leaflet Farm Boundary Map Styling
+   ========================================================= */
+
+.farm-map-wrapper {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+.farm-map-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  background-color: var(--bg-surface-subtle);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.farm-map-toolbar-group {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.btn-outline-danger {
+  color: var(--color-danger);
+  border-color: var(--color-danger-border);
+}
+.btn-outline-danger:hover {
+  background-color: var(--color-danger-bg);
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+}
+
+.farm-map-help-box {
+  background-color: #f0fdf4;
+  border-bottom: 1px solid #bbf7d0;
+  padding: 0.875rem 1.25rem;
+  font-size: 0.8125rem;
+  color: #166534;
+}
+.farm-map-help-box h5 {
+  color: #14532d;
+  font-size: 0.875rem;
+  margin-bottom: 0.35rem;
+}
+.farm-map-help-box ol {
+  margin: 0;
+  padding-left: 1.25rem;
+  line-height: 1.6;
+}
+
+.farm-map-container {
+  width: 100%;
+  min-height: 360px;
+  background-color: #e5e7eb;
+  position: relative;
+  z-index: 1;
+}
+
+.farm-map-hud {
+  padding: 0.75rem 1rem;
+  background-color: var(--bg-surface);
+  border-top: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.farm-map-hud-metrics {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  font-size: 0.875rem;
+  color: var(--text-primary);
+}
+
+.farm-map-hud-empty {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.hud-metric-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.hud-metric-divider {
+  color: var(--text-muted);
+}
+
+/* Customize Leaflet / Geoman Controls to match emerald brand */
+.leaflet-container {
+  font-family: var(--font-sans) !important;
+}
+
+.leaflet-bar {
+  border-radius: var(--radius-md) !important;
+  box-shadow: var(--shadow-md) !important;
+  border: 1px solid var(--border-medium) !important;
+  overflow: hidden;
+}
+
+.leaflet-bar a {
+  background-color: #ffffff !important;
+  color: var(--brand-primary) !important;
+  transition: background-color 0.15s ease;
+}
+
+.leaflet-bar a:hover {
+  background-color: var(--brand-accent-tint) !important;
+  color: var(--brand-primary-hover) !important;
+}
+
+.leaflet-pm-toolbar .leaflet-buttons-control-button {
+  background-color: #ffffff !important;
+}
+
+.leaflet-pm-toolbar .leaflet-buttons-control-button.active {
+  background-color: var(--brand-accent-tint) !important;
+}
+
+/* =========================================================
    Responsive Breakpoints
    ========================================================= */
 
