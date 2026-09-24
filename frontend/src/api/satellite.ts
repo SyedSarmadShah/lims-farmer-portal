@@ -1,4 +1,5 @@
 import { apiClient } from './client';
+import type { NDVIStatistics } from '../types/satellite';
 
 /**
  * Fetches Sentinel-2 true-color satellite imagery for a specific farm parcel.
@@ -23,4 +24,14 @@ export const getFarmNdviImageApi = async (farmId: number): Promise<Blob> => {
   });
   return response.data;
 };
+
+/**
+ * Fetches Sentinel-2 NDVI statistical summary for a specific farm parcel.
+ * Returns mean, min, and max NDVI values.
+ */
+export const getFarmNdviStatsApi = async (farmId: number): Promise<NDVIStatistics> => {
+  const response = await apiClient.get<NDVIStatistics>(`/satellite/farms/${farmId}/ndvi/stats/`);
+  return response.data;
+};
+
 

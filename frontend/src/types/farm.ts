@@ -24,3 +24,6 @@ export interface UpdateFarmPayload {
   location?: string;
   boundary?: GeoPolygon | null;
 }
+
+export type { NDVIStatistics } from './satellite';
+

@@ -10,11 +10,18 @@ import {
   AlertCircle,
   CheckCircle2,
   Clock,
+  Activity,
 } from 'lucide-react';
-import { getFarmByIdApi, deleteFarmApi } from '../../api/farms';
-import type { Farm } from '../../types/farm';
+import { getFarmByIdApi, deleteFarmApi, getFarmNdviStatsApi } from '../../api/farms';
+import type { Farm, NDVIStatistics } from '../../types/farm';
 import { FarmMap } from '../../components/map/FarmMap';
 
+const getVegetationLevel = (avgNdvi: number): { label: string; badgeClass: string } => {
+  if (avgNdvi < 0.1) return { label: 'Very Low', badgeClass: 'badge-danger' };
+  if (avgNdvi < 0.3) return { label: 'Low', badgeClass: 'badge-warning' };
+  if (avgNdvi < 0.5) return { label: 'Moderate', badgeClass: 'badge-neutral' };
+  return { label: 'High', badgeClass: 'badge-success' };
+};
 
 export const FarmDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -24,6 +31,11 @@ export const FarmDetailPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  const [ndviStats, setNdviStats] = useState<NDVIStatistics | null>(null);
+  const [ndviStatsLoading, setNdviStatsLoading] = useState(false);
+  const [ndviStatsError, setNdviStatsError] = useState<string | null>(null);
+
 
   useEffect(() => {
     const fetchFarm = async () => {
@@ -42,6 +54,31 @@ export const FarmDetailPage: React.FC = () => {
 
     fetchFarm();
   }, [id]);
+
+  const farmId = farm?.id;
+  const hasBoundary = Boolean(farm?.boundary);
+
+  useEffect(() => {
+    const fetchNdviStats = async () => {
+      if (!farmId || !hasBoundary) {
+        setNdviStats(null);
+        return;
+      }
+      setNdviStatsLoading(true);
+      setNdviStatsError(null);
+      try {
+        const stats = await getFarmNdviStatsApi(farmId);
+        setNdviStats(stats);
+      } catch {
+        setNdviStatsError('Unable to load NDVI statistics.');
+      } finally {
+        setNdviStatsLoading(false);
+      }
+    };
+
+    fetchNdviStats();
+  }, [farmId, hasBoundary]);
+
 
   const handleDelete = async () => {
     if (!farm || !window.confirm(`Are you sure you want to delete "${farm.name}"?`)) {
@@ -81,8 +118,6 @@ export const FarmDetailPage: React.FC = () => {
       </div>
     );
   }
-
-  const hasBoundary = !!farm.boundary;
 
   return (
     <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
@@ -272,8 +307,8 @@ export const FarmDetailPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Future Analytics Reserved Sections */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+      {/* Satellite Coverage & NDVI Information Sections */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.5rem', marginBottom: '1.5rem' }}>
         <div className="card">
           <div className="card-header">
             <h3 style={{ margin: 0, fontSize: '1.05rem' }}>Satellite Coverage</h3>
@@ -281,20 +316,126 @@ export const FarmDetailPage: React.FC = () => {
           </div>
           <div className="card-body">
             <p style={{ fontSize: '0.875rem' }}>
-              True-color Sentinel-2 satellite imagery is integrated. Switch between standard OpenStreetMap and satellite imagery on the farm map above to monitor field coverage.
+              True-color Sentinel-2 satellite imagery is integrated. Switch between standard OpenStreetMap, satellite imagery, and NDVI on the farm map above to monitor field coverage.
             </p>
           </div>
         </div>
 
-        <div className="card">
+        {/* NDVI Information Card */}
+        <div className="card" id="ndvi-information-card">
           <div className="card-header">
-            <h3 style={{ margin: 0, fontSize: '1.05rem' }}>NDVI & Crop Health</h3>
-            <span className="badge badge-success">Sentinel-2 Active</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <Activity size={18} style={{ color: 'var(--brand-primary)' }} />
+              <h3 style={{ margin: 0, fontSize: '1.05rem' }}>NDVI Information</h3>
+            </div>
+            {ndviStats && !ndviStatsLoading && !ndviStatsError && (
+              <span className={`badge ${getVegetationLevel(ndviStats.average_ndvi).badgeClass}`}>
+                {getVegetationLevel(ndviStats.average_ndvi).label}
+              </span>
+            )}
           </div>
           <div className="card-body">
-            <p style={{ fontSize: '0.875rem' }}>
-              Normalized Difference Vegetation Index (NDVI) imagery is integrated. Switch to the <strong>NDVI</strong> layer on the farm map above to evaluate vegetation vigor and plant canopy health.
-            </p>
+            {ndviStatsLoading ? (
+              <div style={{ padding: '1.25rem 0', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                <div className="spinner spinner-sm" style={{ margin: '0 auto 0.5rem' }} />
+                <p style={{ fontSize: '0.875rem', margin: 0 }}>Loading NDVI statistics...</p>
+              </div>
+            ) : ndviStatsError ? (
+              <div className="alert alert-danger" style={{ margin: 0, fontSize: '0.8125rem' }}>
+                <AlertCircle size={15} />
+                <span>{ndviStatsError}</span>
+              </div>
+            ) : ndviStats ? (
+              <div>
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(3, 1fr)',
+                    gap: '0.75rem',
+                    marginBottom: '0.75rem',
+                  }}
+                >
+                  <div
+                    style={{
+                      backgroundColor: 'var(--bg-surface-subtle)',
+                      padding: '0.65rem 0.5rem',
+                      borderRadius: 'var(--radius-md)',
+                      border: '1px solid var(--border-subtle)',
+                      textAlign: 'center',
+                    }}
+                  >
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>
+                      Average NDVI
+                    </div>
+                    <div style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--brand-primary)', marginTop: '0.2rem' }}>
+                      {ndviStats.average_ndvi.toFixed(2)}
+                    </div>
+                  </div>
+
+                  <div
+                    style={{
+                      backgroundColor: 'var(--bg-surface-subtle)',
+                      padding: '0.65rem 0.5rem',
+                      borderRadius: 'var(--radius-md)',
+                      border: '1px solid var(--border-subtle)',
+                      textAlign: 'center',
+                    }}
+                  >
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>
+                      Minimum NDVI
+                    </div>
+                    <div style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '0.2rem' }}>
+                      {ndviStats.minimum_ndvi.toFixed(2)}
+                    </div>
+                  </div>
+
+                  <div
+                    style={{
+                      backgroundColor: 'var(--bg-surface-subtle)',
+                      padding: '0.65rem 0.5rem',
+                      borderRadius: 'var(--radius-md)',
+                      border: '1px solid var(--border-subtle)',
+                      textAlign: 'center',
+                    }}
+                  >
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>
+                      Maximum NDVI
+                    </div>
+                    <div style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '0.2rem' }}>
+                      {ndviStats.maximum_ndvi.toFixed(2)}
+                    </div>
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '0.45rem 0.75rem',
+                    backgroundColor: 'var(--brand-accent-tint)',
+                    borderRadius: 'var(--radius-sm)',
+                    border: '1px solid #bbf7d0',
+                    fontSize: '0.8125rem',
+                  }}
+                >
+                  <span style={{ color: 'var(--brand-primary)', fontWeight: 600 }}>Vegetation Level:</span>
+                  <span style={{ fontWeight: 700, color: 'var(--brand-primary)' }}>
+                    {getVegetationLevel(ndviStats.average_ndvi).label}
+                  </span>
+                </div>
+
+                <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.5rem', marginBottom: 0 }}>
+                  This is only a simple NDVI visualization category, not a scientific crop-health diagnosis.
+                </p>
+              </div>
+            ) : (
+              <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', margin: 0 }}>
+                {hasBoundary
+                  ? 'No NDVI statistics available for this farm parcel.'
+                  : 'Outline a farm boundary to view NDVI statistics.'}
+              </p>
+            )}
           </div>
         </div>
       </div>
