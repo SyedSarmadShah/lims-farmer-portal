@@ -3,7 +3,6 @@ import type { User, LoginPayload, RegisterPayload } from '../types/auth';
 import { loginApi, registerApi, getProfileApi } from '../api/auth';
 import {
   getStoredAccessToken,
-  getStoredRefreshToken,
   setStoredTokens,
   clearStoredTokens,
 } from '../api/client';
@@ -36,10 +35,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const profile = await getProfileApi();
       setUser(profile);
     } catch {
-      if (!getStoredRefreshToken()) {
-        clearStoredTokens();
-        setUser(null);
-      }
+      clearStoredTokens();
+      setUser(null);
     } finally {
       setIsLoading(false);
     }

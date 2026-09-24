@@ -11,16 +11,40 @@ export const getStoredRefreshToken = (): string | null => {
   return localStorage.getItem(REFRESH_TOKEN_KEY);
 };
 
+/**
+ * Robustly sets Authorization header on AxiosHeaders instance or plain header object
+ */
+const setAuthHeader = (headers: unknown, token: string): void => {
+  if (!headers) return;
+  const h = headers as Record<string, unknown> & { set?: (k: string, v: string) => void };
+  if (typeof h.set === 'function') {
+    h.set('Authorization', `Bearer ${token}`);
+  } else {
+    h['Authorization'] = `Bearer ${token}`;
+  }
+};
+
 export const setStoredTokens = (access: string, refresh?: string): void => {
   localStorage.setItem(ACCESS_TOKEN_KEY, access);
   if (refresh) {
     localStorage.setItem(REFRESH_TOKEN_KEY, refresh);
   }
+  setAuthHeader(apiClient.defaults.headers.common, access);
 };
 
 export const clearStoredTokens = (): void => {
   localStorage.removeItem(ACCESS_TOKEN_KEY);
   localStorage.removeItem(REFRESH_TOKEN_KEY);
+  if (apiClient.defaults.headers.common) {
+    const common = apiClient.defaults.headers.common as Record<string, unknown> & {
+      delete?: (k: string) => void;
+    };
+    if (typeof common.delete === 'function') {
+      common.delete('Authorization');
+    } else {
+      delete common['Authorization'];
+    }
+  }
 };
 
 export const apiClient = axios.create({
@@ -30,12 +54,21 @@ export const apiClient = axios.create({
   },
 });
 
-// Request interceptor: attach bearer token
+// Initialize default Authorization header from localStorage on startup if present
+const initialToken = getStoredAccessToken();
+if (initialToken) {
+  setAuthHeader(apiClient.defaults.headers.common, initialToken);
+}
+
+// Request interceptor: attach bearer token using proper AxiosHeaders.set API
 apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     const token = getStoredAccessToken();
-    if (token && config.headers) {
-      config.headers.Authorization = `Bearer ${token}`;
+    if (token) {
+      if (!config.headers) {
+        config.headers = new axios.AxiosHeaders();
+      }
+      setAuthHeader(config.headers, token);
     }
     return config;
   },
@@ -63,9 +96,9 @@ const processQueue = (error: unknown, token: string | null = null) => {
 apiClient.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
-    const originalRequest = error.config as InternalAxiosRequestConfig & {
+    const originalRequest = error.config as (InternalAxiosRequestConfig & {
       _retry?: boolean;
-    };
+    }) | undefined;
 
     // If 401 and request has not already been retried
     if (error.response?.status === 401 && originalRequest && !originalRequest._retry) {
@@ -90,9 +123,8 @@ apiClient.interceptors.response.use(
           failedQueue.push({ resolve, reject });
         })
           .then((token) => {
-            if (originalRequest.headers) {
-              originalRequest.headers.Authorization = `Bearer ${token}`;
-            }
+            originalRequest._retry = true;
+            setAuthHeader(originalRequest.headers, token);
             return apiClient(originalRequest);
           })
           .catch((err) => Promise.reject(err));
@@ -113,9 +145,7 @@ apiClient.interceptors.response.use(
 
         processQueue(null, newAccessToken);
 
-        if (originalRequest.headers) {
-          originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
-        }
+        setAuthHeader(originalRequest.headers, newAccessToken);
         return apiClient(originalRequest);
       } catch (refreshErr) {
         processQueue(refreshErr, null);
