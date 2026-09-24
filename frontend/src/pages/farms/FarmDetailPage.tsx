@@ -289,11 +289,11 @@ export const FarmDetailPage: React.FC = () => {
         <div className="card">
           <div className="card-header">
             <h3 style={{ margin: 0, fontSize: '1.05rem' }}>NDVI & Crop Health</h3>
-            <span className="badge badge-neutral">Future Step</span>
+            <span className="badge badge-success">Sentinel-2 Active</span>
           </div>
           <div className="card-body">
             <p style={{ fontSize: '0.875rem' }}>
-              Vegetation health indexes, moisture stress alerts, and historical canopy vigor graphs will appear here.
+              Normalized Difference Vegetation Index (NDVI) imagery is integrated. Switch to the <strong>NDVI</strong> layer on the farm map above to evaluate vegetation vigor and plant canopy health.
             </p>
           </div>
         </div>

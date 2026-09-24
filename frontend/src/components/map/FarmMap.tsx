@@ -15,6 +15,7 @@ import {
   HelpCircle,
   Map as MapIcon,
   Satellite,
+  Activity,
 } from 'lucide-react';
 
 import type { GeoPolygon } from '../../types/farm';
@@ -24,11 +25,13 @@ import {
   calculatePolygonMetrics,
   type PolygonMetrics,
 } from '../../utils/geoUtils';
-import { getFarmSatelliteImageApi } from '../../api/satellite';
+import { getFarmSatelliteImageApi, getFarmNdviImageApi } from '../../api/satellite';
 
 // Sensible default map center: Agricultural hub in Punjab / Pakistan
 const DEFAULT_CENTER: [number, number] = [31.5204, 73.5];
 const DEFAULT_ZOOM = 9;
+
+export type FarmMapViewMode = 'map' | 'satellite' | 'ndvi';
 
 export interface FarmMapProps {
   initialBoundary?: GeoPolygon | null;
@@ -39,8 +42,8 @@ export interface FarmMapProps {
   zoom?: number;
   farmId?: number;
   allowSatellite?: boolean;
-  defaultViewMode?: 'map' | 'satellite';
-  onViewModeChange?: (mode: 'map' | 'satellite') => void;
+  defaultViewMode?: FarmMapViewMode;
+  onViewModeChange?: (mode: FarmMapViewMode) => void;
 }
 
 export const FarmMap: React.FC<FarmMapProps> = ({
@@ -59,19 +62,21 @@ export const FarmMap: React.FC<FarmMapProps> = ({
   const mapInstanceRef = useRef<L.Map | null>(null);
   const polygonLayerRef = useRef<L.Polygon | null>(null);
 
-  const [viewMode, setViewMode] = useState<'map' | 'satellite'>(defaultViewMode);
-  const [satelliteLoading, setSatelliteLoading] = useState(false);
-  const [satelliteError, setSatelliteError] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<FarmMapViewMode>(defaultViewMode);
+  const [layerLoading, setLayerLoading] = useState(false);
+  const [layerError, setLayerError] = useState<string | null>(null);
 
   const satelliteUrlRef = useRef<string | null>(null);
+  const ndviUrlRef = useRef<string | null>(null);
   const imageOverlayRef = useRef<L.ImageOverlay | null>(null);
   const isMountedRef = useRef<boolean>(true);
-  const currentViewModeRef = useRef<'map' | 'satellite'>(viewMode);
+  const currentViewModeRef = useRef<FarmMapViewMode>(viewMode);
   const activeFetchFarmIdRef = useRef<number | null>(null);
 
   useEffect(() => {
     currentViewModeRef.current = viewMode;
   }, [viewMode]);
+
 
   const [metrics, setMetrics] = useState<PolygonMetrics | null>(() => {
     if (initialBoundary?.coordinates?.[0]) {
@@ -265,15 +270,19 @@ export const FarmMap: React.FC<FarmMapProps> = ({
     return null;
   }, [initialBoundary]);
 
-  // Display satellite image overlay covering the farm's geographic bounds
-  const displaySatelliteOverlay = useCallback(
-    (url: string) => {
+  // Display imagery overlay covering the farm's geographic bounds
+  const displayImageOverlay = useCallback(
+    (url: string, altText: string) => {
       const map = mapInstanceRef.current;
       if (!map) return;
 
       const bounds = getPolygonBounds();
       if (!bounds || !bounds.isValid()) {
-        setSatelliteError('Unable to load satellite imagery.');
+        setLayerError(
+          currentViewModeRef.current === 'ndvi'
+            ? 'Unable to load NDVI imagery.'
+            : 'Unable to load satellite imagery.'
+        );
         return;
       }
 
@@ -287,13 +296,13 @@ export const FarmMap: React.FC<FarmMapProps> = ({
         pane: 'satellitePane',
         opacity: 1,
         interactive: false,
-        alt: 'Sentinel-2 Satellite Imagery',
+        alt: altText,
       });
 
       overlay.addTo(map);
       imageOverlayRef.current = overlay;
 
-      // Keep polygon boundary visible on top of satellite imagery
+      // Keep polygon boundary visible on top of imagery
       if (polygonLayerRef.current) {
         polygonLayerRef.current.bringToFront();
       }
@@ -301,8 +310,8 @@ export const FarmMap: React.FC<FarmMapProps> = ({
     [getPolygonBounds]
   );
 
-  // Remove satellite image overlay from map
-  const removeSatelliteOverlay = useCallback(() => {
+  // Remove imagery overlay from map
+  const removeImageOverlay = useCallback(() => {
     if (imageOverlayRef.current) {
       imageOverlayRef.current.remove();
       imageOverlayRef.current = null;
@@ -313,12 +322,12 @@ export const FarmMap: React.FC<FarmMapProps> = ({
   const loadSatelliteImage = useCallback(
     async (targetFarmId: number) => {
       if (satelliteUrlRef.current) {
-        displaySatelliteOverlay(satelliteUrlRef.current);
+        displayImageOverlay(satelliteUrlRef.current, 'Sentinel-2 Satellite Imagery');
         return;
       }
 
-      setSatelliteLoading(true);
-      setSatelliteError(null);
+      setLayerLoading(true);
+      setLayerError(null);
       activeFetchFarmIdRef.current = targetFarmId;
 
       try {
@@ -331,48 +340,94 @@ export const FarmMap: React.FC<FarmMapProps> = ({
         satelliteUrlRef.current = objectUrl;
 
         if (currentViewModeRef.current === 'satellite') {
-          displaySatelliteOverlay(objectUrl);
+          displayImageOverlay(objectUrl, 'Sentinel-2 Satellite Imagery');
         }
       } catch {
         if (isMountedRef.current) {
-          setSatelliteError('Unable to load satellite imagery.');
+          setLayerError('Unable to load satellite imagery.');
         }
       } finally {
         if (isMountedRef.current) {
-          setSatelliteLoading(false);
+          setLayerLoading(false);
         }
       }
     },
-    [displaySatelliteOverlay]
+    [displayImageOverlay]
   );
 
-  // Switch between standard map and satellite view
-  const handleViewModeChange = (mode: 'map' | 'satellite') => {
+  // Request NDVI imagery using authenticated API client
+  const loadNdviImage = useCallback(
+    async (targetFarmId: number) => {
+      if (ndviUrlRef.current) {
+        displayImageOverlay(ndviUrlRef.current, 'Sentinel-2 NDVI Imagery');
+        return;
+      }
+
+      setLayerLoading(true);
+      setLayerError(null);
+      activeFetchFarmIdRef.current = targetFarmId;
+
+      try {
+        const blob = await getFarmNdviImageApi(targetFarmId);
+        if (!isMountedRef.current || activeFetchFarmIdRef.current !== targetFarmId) {
+          return;
+        }
+
+        const objectUrl = URL.createObjectURL(blob);
+        ndviUrlRef.current = objectUrl;
+
+        if (currentViewModeRef.current === 'ndvi') {
+          displayImageOverlay(objectUrl, 'Sentinel-2 NDVI Imagery');
+        }
+      } catch {
+        if (isMountedRef.current) {
+          setLayerError('Unable to load NDVI imagery.');
+        }
+      } finally {
+        if (isMountedRef.current) {
+          setLayerLoading(false);
+        }
+      }
+    },
+    [displayImageOverlay]
+  );
+
+  // Switch between standard map, satellite view, and NDVI view
+  const handleViewModeChange = (mode: FarmMapViewMode) => {
     if (mode === viewMode) return;
     setViewMode(mode);
     currentViewModeRef.current = mode;
+    setLayerError(null);
     if (onViewModeChange) {
       onViewModeChange(mode);
     }
 
-    if (mode === 'satellite') {
+    if (mode === 'map') {
+      removeImageOverlay();
+    } else if (mode === 'satellite') {
+      removeImageOverlay();
       if (farmId) {
         loadSatelliteImage(farmId);
       }
-    } else {
-      removeSatelliteOverlay();
-      setSatelliteError(null);
+    } else if (mode === 'ndvi') {
+      removeImageOverlay();
+      if (farmId) {
+        loadNdviImage(farmId);
+      }
     }
   };
 
-  const handleRetrySatellite = (e: React.MouseEvent) => {
+  const handleRetry = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (farmId) {
+    if (!farmId) return;
+    if (viewMode === 'satellite') {
       loadSatelliteImage(farmId);
+    } else if (viewMode === 'ndvi') {
+      loadNdviImage(farmId);
     }
   };
 
-  // Clean up Object URL on component unmount
+  // Clean up Object URLs on component unmount
   useEffect(() => {
     isMountedRef.current = true;
     return () => {
@@ -380,6 +435,10 @@ export const FarmMap: React.FC<FarmMapProps> = ({
       if (satelliteUrlRef.current) {
         URL.revokeObjectURL(satelliteUrlRef.current);
         satelliteUrlRef.current = null;
+      }
+      if (ndviUrlRef.current) {
+        URL.revokeObjectURL(ndviUrlRef.current);
+        ndviUrlRef.current = null;
       }
     };
   }, []);
@@ -393,12 +452,19 @@ export const FarmMap: React.FC<FarmMapProps> = ({
         URL.revokeObjectURL(satelliteUrlRef.current);
         satelliteUrlRef.current = null;
       }
-      removeSatelliteOverlay();
+      if (ndviUrlRef.current) {
+        URL.revokeObjectURL(ndviUrlRef.current);
+        ndviUrlRef.current = null;
+      }
+      removeImageOverlay();
       if (currentViewModeRef.current === 'satellite' && farmId) {
         loadSatelliteImage(farmId);
+      } else if (currentViewModeRef.current === 'ndvi' && farmId) {
+        loadNdviImage(farmId);
       }
     }
-  }, [farmId, removeSatelliteOverlay, loadSatelliteImage]);
+  }, [farmId, removeImageOverlay, loadSatelliteImage, loadNdviImage]);
+
 
 
   // Toolbar Action Handlers
@@ -563,7 +629,7 @@ export const FarmMap: React.FC<FarmMapProps> = ({
         className="farm-map-container"
         style={{ height: typeof height === 'number' ? `${height}px` : height }}
       >
-        {/* Map Layer Switcher: Normal Street Map vs Sentinel-2 Satellite Imagery */}
+        {/* Map Layer Switcher: Normal Street Map vs Sentinel-2 Satellite vs NDVI */}
         {showSatelliteToggle && (
           <div className="farm-map-layer-control" role="group" aria-label="Map Layer Toggle">
             <button
@@ -586,25 +652,35 @@ export const FarmMap: React.FC<FarmMapProps> = ({
               <Satellite size={14} />
               <span>Satellite</span>
             </button>
+            <button
+              type="button"
+              className={`farm-map-layer-btn ${viewMode === 'ndvi' ? 'active' : ''}`}
+              onClick={() => handleViewModeChange('ndvi')}
+              id="farm-map-view-ndvi"
+              title="Sentinel-2 NDVI Vegetation Index View"
+            >
+              <Activity size={14} />
+              <span>NDVI</span>
+            </button>
           </div>
         )}
 
         {/* Small Floating Status Indicators */}
-        {showSatelliteToggle && viewMode === 'satellite' && satelliteLoading && (
+        {showSatelliteToggle && viewMode !== 'map' && layerLoading && (
           <div className="farm-map-status-pill loading" id="satellite-loading-pill">
             <div className="spinner spinner-sm" style={{ width: 14, height: 14 }} />
-            <span>Loading satellite imagery...</span>
+            <span>{viewMode === 'ndvi' ? 'Loading NDVI...' : 'Loading satellite imagery...'}</span>
           </div>
         )}
 
-        {showSatelliteToggle && viewMode === 'satellite' && satelliteError && (
+        {showSatelliteToggle && viewMode !== 'map' && layerError && (
           <div className="farm-map-status-pill error" id="satellite-error-pill">
             <AlertCircle size={14} />
-            <span>{satelliteError}</span>
+            <span>{layerError}</span>
             <button
               type="button"
               className="btn-retry-pill"
-              onClick={handleRetrySatellite}
+              onClick={handleRetry}
               title="Try loading imagery again"
             >
               Retry
@@ -617,12 +693,16 @@ export const FarmMap: React.FC<FarmMapProps> = ({
       <div className="farm-map-hud">
         {metrics ? (
           <div className="farm-map-hud-metrics">
-            {viewMode === 'satellite' ? (
-              satelliteLoading ? (
+            {viewMode === 'map' ? (
+              <span className="badge badge-success">
+                <CheckCircle2 size={13} /> Boundary Plotted
+              </span>
+            ) : viewMode === 'satellite' ? (
+              layerLoading ? (
                 <span className="badge badge-warning">
                   <div className="spinner spinner-sm" style={{ width: 12, height: 12 }} /> Satellite Loading...
                 </span>
-              ) : satelliteError ? (
+              ) : layerError ? (
                 <span className="badge badge-danger">
                   <AlertCircle size={13} /> Satellite Unavailable
                 </span>
@@ -632,9 +712,19 @@ export const FarmMap: React.FC<FarmMapProps> = ({
                 </span>
               )
             ) : (
-              <span className="badge badge-success">
-                <CheckCircle2 size={13} /> Boundary Plotted
-              </span>
+              layerLoading ? (
+                <span className="badge badge-warning">
+                  <div className="spinner spinner-sm" style={{ width: 12, height: 12 }} /> NDVI Loading...
+                </span>
+              ) : layerError ? (
+                <span className="badge badge-danger">
+                  <AlertCircle size={13} /> NDVI Unavailable
+                </span>
+              ) : (
+                <span className="badge badge-success">
+                  <Activity size={13} /> Sentinel-2 NDVI
+                </span>
+              )
             )}
             <span className="hud-metric-item">
               <strong>{metrics.vertexCount}</strong> corner vertices
@@ -644,11 +734,11 @@ export const FarmMap: React.FC<FarmMapProps> = ({
               Area: <strong>{metrics.acres}</strong> Acres{' '}
               <span style={{ color: 'var(--text-muted)' }}>({metrics.hectares} Ha)</span>
             </span>
-            {viewMode === 'satellite' && !satelliteLoading && !satelliteError && (
+            {viewMode !== 'map' && !layerLoading && !layerError && (
               <>
                 <span className="hud-metric-divider">•</span>
                 <span className="hud-metric-item" style={{ color: 'var(--text-secondary)' }}>
-                  10m Multispectral
+                  {viewMode === 'ndvi' ? 'Vegetation Index (B08/B04)' : '10m Multispectral'}
                 </span>
               </>
             )}

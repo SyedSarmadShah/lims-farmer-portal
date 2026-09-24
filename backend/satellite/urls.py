@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import FarmNDVIView, FarmSatelliteImageView
+from .views import FarmNDVIView, FarmSatelliteImageView,FarmNDVIStatisticsView
 
 urlpatterns = [
     path(
@@ -11,5 +11,10 @@ urlpatterns = [
         "farms/<int:farm_id>/ndvi/",
         FarmNDVIView.as_view(),
         name="farm-ndvi",
+    ),
+    path(
+    "farms/<int:farm_id>/ndvi/stats/",
+    FarmNDVIStatisticsView.as_view(),
+    name="farm-ndvi-statistics",
     ),
 ]

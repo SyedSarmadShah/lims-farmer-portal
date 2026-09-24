@@ -281,3 +281,103 @@ function evaluatePixel(sample) {
     response.raise_for_status()
 
     return response.content
+
+STATISTICS_URL = "https://services.sentinel-hub.com/api/v1/statistics"
+
+
+def get_ndvi_statistics(
+    geometry: dict,
+    start_date: str,
+    end_date: str,
+) -> dict:
+    access_token = get_access_token()
+
+    evalscript = """
+//VERSION=3
+
+function setup() {
+    return {
+        input: [
+            {
+                bands: ["B04", "B08", "dataMask"]
+            }
+        ],
+        output: [
+            {
+                id: "ndvi",
+                bands: 1,
+                sampleType: "FLOAT32"
+            },
+            {
+                id: "dataMask",
+                bands: 1
+            }
+        ]
+    };
+}
+
+function evaluatePixel(sample) {
+    let ndvi = (sample.B08 - sample.B04) /
+               (sample.B08 + sample.B04);
+
+    return {
+        ndvi: [ndvi],
+        dataMask: [sample.dataMask]
+    };
+}
+"""
+
+    payload = {
+        "input": {
+            "bounds": {
+                "properties": {
+                    "crs": "http://www.opengis.net/def/crs/OGC/1.3/CRS84"
+                },
+                "geometry": geometry,
+            },
+            "data": [
+                {
+                    "type": "sentinel-2-l2a",
+                    "dataFilter": {
+                        "timeRange": {
+                            "from": f"{start_date}T00:00:00Z",
+                            "to": f"{end_date}T23:59:59Z",
+                        },
+                        "maxCloudCoverage": 30,
+                    },
+                }
+            ],
+        },
+        "aggregation": {
+            "timeRange": {
+                "from": f"{start_date}T00:00:00Z",
+                "to": f"{end_date}T23:59:59Z",
+            },
+            "aggregationInterval": {
+                "of": "P30D"
+            },
+            "evalscript": evalscript,
+            "resx": 0.0001,
+            "resy": 0.0001,
+        },
+    }
+
+    response = requests.post(
+        STATISTICS_URL,
+        headers={
+            "Authorization": f"Bearer {access_token}",
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+        },
+        json=payload,
+        timeout=120,
+    )
+
+    if not response.ok:
+        raise requests.HTTPError(
+            f"Sentinel Hub statistics request failed ({response.status_code}): "
+            f"{response.text}",
+            response=response,
+        )
+
+    return response.json()
