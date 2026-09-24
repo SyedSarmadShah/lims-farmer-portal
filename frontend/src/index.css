@@ -421,6 +421,19 @@ a:hover {
   margin-bottom: 1.5rem;
 }
 
+.login-brand {
+  flex-direction: column;
+  gap: 0.6rem;
+  text-align: center;
+}
+
+.login-logo {
+  width: min(88px, 24vw);
+  height: auto;
+  aspect-ratio: 1;
+  object-fit: contain;
+}
+
 .auth-logo-badge {
   width: 42px;
   height: 42px;
@@ -441,6 +454,14 @@ a:hover {
 .auth-brand-text p {
   font-size: 0.8125rem;
   color: var(--text-muted);
+}
+
+.login-brand .auth-brand-text h2 {
+  font-size: 1.35rem;
+}
+
+.login-brand .auth-brand-text p {
+  font-size: 0.875rem;
 }
 
 .auth-title {

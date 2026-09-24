@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { AlertCircle, ArrowRight, CheckCircle2, KeyRound } from 'lucide-react';
+import { AlertCircle, ArrowRight, CheckCircle2 } from 'lucide-react';
 
 
 import { useAuth } from '../../context/AuthContext';
@@ -18,12 +18,6 @@ export const LoginPage: React.FC = () => {
 
   // Navigate to previous location or dashboard after login
   const from = (location.state as { from?: { pathname?: string } })?.from?.pathname || '/dashboard';
-
-  const fillDemoCredentials = () => {
-    setUsername('farmer1');
-    setPassword('Farmer123!');
-    setError(null);
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -66,16 +60,11 @@ export const LoginPage: React.FC = () => {
   return (
     <div className="auth-wrapper">
       <div className="auth-card">
-        <div className="auth-brand">
+        <div className="auth-brand login-brand">
           <img
             src="/lims_logo.png"
             alt="LIMS Logo"
-            style={{
-              width: '46px',
-              height: '46px',
-              objectFit: 'contain',
-              borderRadius: '8px',
-            }}
+            className="login-logo"
           />
 
           <div className="auth-brand-text">
@@ -102,41 +91,6 @@ export const LoginPage: React.FC = () => {
             <div>{error}</div>
           </div>
         )}
-
-        {/* Demo Account Quick-Fill Card */}
-        <div
-          style={{
-            backgroundColor: 'var(--brand-accent-tint)',
-            border: '1px solid var(--brand-accent)',
-            borderRadius: 'var(--radius-md)',
-            padding: '0.75rem 1rem',
-            marginBottom: '1.25rem',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: '0.5rem',
-            fontSize: '0.8125rem',
-          }}
-        >
-          <div>
-            <div style={{ fontWeight: 600, color: 'var(--brand-primary)' }}>
-              Quick Demo Account:
-            </div>
-            <div style={{ color: 'var(--text-secondary)' }}>
-              <code>farmer1</code> / <code>Farmer123!</code>
-            </div>
-          </div>
-          <button
-            type="button"
-            className="btn btn-secondary btn-sm"
-            onClick={fillDemoCredentials}
-            disabled={submitting}
-            style={{ fontSize: '0.75rem', padding: '0.3rem 0.6rem' }}
-          >
-            <KeyRound size={13} />
-            <span>Use Demo</span>
-          </button>
-        </div>
 
         <form onSubmit={handleSubmit}>
           <div className="form-group">
