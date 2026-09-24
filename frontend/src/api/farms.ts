@@ -25,3 +25,6 @@ export const updateFarmApi = async (id: number, data: UpdateFarmPayload): Promis
 export const deleteFarmApi = async (id: number): Promise<void> => {
   await apiClient.delete(`/farms/${id}/`);
 };
+
+export { getFarmSatelliteImageApi } from './satellite';
+

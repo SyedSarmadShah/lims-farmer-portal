@@ -226,6 +226,7 @@ export const FarmDetailPage: React.FC = () => {
                   initialBoundary={farm.boundary}
                   readOnly={true}
                   height={380}
+                  farmId={farm.id}
                 />
               </div>
               <details
@@ -276,11 +277,11 @@ export const FarmDetailPage: React.FC = () => {
         <div className="card">
           <div className="card-header">
             <h3 style={{ margin: 0, fontSize: '1.05rem' }}>Satellite Coverage</h3>
-            <span className="badge badge-neutral">Future Step</span>
+            <span className="badge badge-success">Sentinel-2 Active</span>
           </div>
           <div className="card-body">
             <p style={{ fontSize: '0.875rem' }}>
-              Once the polygon boundary is confirmed on Leaflet, Sentinel-2 / Landsat-8 imagery passes over this farm will be queried.
+              True-color Sentinel-2 satellite imagery is integrated. Switch between standard OpenStreetMap and satellite imagery on the farm map above to monitor field coverage.
             </p>
           </div>
         </div>
