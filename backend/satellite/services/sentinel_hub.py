@@ -54,7 +54,184 @@ function evaluatePixel(sample) {
     ];
 }
 """
+def get_ndvi_image(
+    geometry: dict,
+    start_date: str,
+    end_date: str,
+) -> bytes:
+    access_token = get_access_token()
 
+    evalscript = """
+//VERSION=3
+
+function setup() {
+    return {
+        input: ["B04", "B08"],
+        output: {
+            bands: 3,
+            sampleType: "AUTO"
+        }
+    };
+}
+
+function evaluatePixel(sample) {
+    let ndvi = (sample.B08 - sample.B04) /
+               (sample.B08 + sample.B04);
+
+    if (ndvi < 0.1) {
+        return [0.5, 0.5, 0.5];
+    }
+
+    if (ndvi < 0.3) {
+        return [1, 1, 0];
+    }
+
+    if (ndvi < 0.5) {
+        return [0.6, 1, 0];
+    }
+
+    return [0, 0.6, 0];
+}
+"""
+def get_ndvi_image(
+    geometry: dict,
+    start_date: str,
+    end_date: str,
+) -> bytes:
+    access_token = get_access_token()
+
+    evalscript = """
+//VERSION=3
+
+function setup() {
+    return {
+        input: ["B04", "B08"],
+        output: {
+            bands: 3,
+            sampleType: "AUTO"
+        }
+    };
+}
+
+function evaluatePixel(sample) {
+    let ndvi = (sample.B08 - sample.B04) /
+               (sample.B08 + sample.B04);
+
+    if (ndvi < 0.1) {
+        return [0.5, 0.5, 0.5];
+    }
+
+    if (ndvi < 0.3) {
+        return [1, 1, 0];
+    }
+
+    if (ndvi < 0.5) {
+        return [0.6, 1, 0];
+    }
+
+    return [0, 0.6, 0];
+}
+"""
+
+    payload = {
+        "input": {
+            "bounds": {
+                "properties": {
+                    "crs": "http://www.opengis.net/def/crs/OGC/1.3/CRS84"
+                },
+                "geometry": geometry,
+            },
+            "data": [
+                {
+                    "type": "sentinel-2-l2a",
+                    "dataFilter": {
+                        "timeRange": {
+                            "from": f"{start_date}T00:00:00Z",
+                            "to": f"{end_date}T23:59:59Z",
+                        },
+                        "maxCloudCoverage": 30,
+                    },
+                }
+            ],
+        },
+        "output": {
+            "width": 512,
+            "height": 512,
+            "responses": [
+                {
+                    "identifier": "default",
+                    "format": {
+                        "type": "image/png",
+                    },
+                }
+            ],
+        },
+        "evalscript": evalscript,
+    }
+
+    response = requests.post(
+        PROCESS_URL,
+        headers={
+            "Authorization": f"Bearer {access_token}",
+            "Content-Type": "application/json",
+        },
+        json=payload,
+        timeout=120,
+    )
+
+    response.raise_for_status()
+
+    return response.content
+
+    payload = {
+        "input": {
+            "bounds": {
+                "properties": {
+                    "crs": "http://www.opengis.net/def/crs/OGC/1.3/CRS84"
+                },
+                "geometry": geometry,
+            },
+            "data": [
+                {
+                    "type": "sentinel-2-l2a",
+                    "dataFilter": {
+                        "timeRange": {
+                            "from": f"{start_date}T00:00:00Z",
+                            "to": f"{end_date}T23:59:59Z",
+                        },
+                        "maxCloudCoverage": 30,
+                    },
+                }
+            ],
+        },
+        "output": {
+            "width": 512,
+            "height": 512,
+            "responses": [
+                {
+                    "identifier": "default",
+                    "format": {
+                        "type": "image/png",
+                    },
+                }
+            ],
+        },
+        "evalscript": evalscript,
+    }
+
+    response = requests.post(
+        PROCESS_URL,
+        headers={
+            "Authorization": f"Bearer {access_token}",
+            "Content-Type": "application/json",
+        },
+        json=payload,
+        timeout=120,
+    )
+
+    response.raise_for_status()
+
+    return response.content
     payload = {
         "input": {
             "bounds": {
