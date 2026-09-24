@@ -1293,3 +1293,117 @@ a:hover {
   height: 12px;
   border-radius: 50%;
 }
+
+/* =========================================================
+   Farm Detail Tabs & Mobile-First Enhancements
+   ========================================================= */
+
+.farm-tabs-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 0.25rem 0.25rem 0.75rem;
+  margin-bottom: 1.25rem;
+  border-bottom: 2px solid var(--border-subtle);
+  scrollbar-width: thin;
+}
+
+.farm-tabs-bar::-webkit-scrollbar {
+  height: 4px;
+}
+
+.farm-tabs-bar::-webkit-scrollbar-thumb {
+  background-color: var(--border-medium);
+  border-radius: 4px;
+}
+
+.farm-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.65rem 1.15rem;
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  background-color: transparent;
+  color: var(--text-secondary);
+  font-size: 0.9375rem;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  min-height: 44px; /* Touch target accessibility */
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.farm-tab-btn:hover {
+  background-color: var(--bg-surface-subtle);
+  color: var(--text-primary);
+}
+
+.farm-tab-btn.active {
+  background-color: var(--brand-primary);
+  color: #ffffff;
+  font-weight: 600;
+  box-shadow: 0 2px 6px rgba(24, 78, 54, 0.25);
+}
+
+/* Responsive grid adjustments */
+@media (max-width: 900px) {
+  .farms-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  html, body {
+    overflow-x: hidden;
+  }
+
+  .farms-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .app-header {
+    padding: 0 0.85rem;
+  }
+
+  .header-sub {
+    display: none;
+  }
+
+  .btn-header-add span {
+    display: none;
+  }
+
+  .farm-tab-btn {
+    padding: 0.5rem 0.85rem;
+    font-size: 0.875rem;
+  }
+
+  .app-main {
+    padding: 1rem 0.75rem;
+  }
+
+  .farm-card {
+    padding: 1.15rem;
+  }
+
+  .farm-map-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.5rem;
+  }
+
+  .farm-map-toolbar-group {
+    flex-wrap: wrap;
+    width: 100%;
+  }
+
+  .farm-map-toolbar-group .btn {
+    flex: 1 1 auto;
+    min-height: 40px;
+    justify-content: center;
+  }
+}

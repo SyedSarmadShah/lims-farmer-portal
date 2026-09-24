@@ -1,71 +1,43 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
-  Trees,
+  Sprout,
   Save,
   ArrowLeft,
   AlertCircle,
-  CheckCircle2,
   MapPin,
 } from 'lucide-react';
 
 import { createFarmApi } from '../../api/farms';
-import { FarmMap } from '../../components/map/FarmMap';
-import type { GeoPolygon } from '../../types/farm';
-import { validateGeoPolygon } from '../../utils/geoUtils';
 
 export const CreateFarmPage: React.FC = () => {
   const navigate = useNavigate();
 
   const [name, setName] = useState('');
   const [location, setLocation] = useState('');
-  const [boundary, setBoundary] = useState<GeoPolygon | null>(null);
   const [nameError, setNameError] = useState<string | null>(null);
-  const [boundaryError, setBoundaryError] = useState<string | null>(null);
   const [generalError, setGeneralError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [createdSuccess, setCreatedSuccess] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setNameError(null);
-    setBoundaryError(null);
     setGeneralError(null);
-
-    let hasClientError = false;
 
     if (!name.trim()) {
       setNameError('Farm name is required.');
-      hasClientError = true;
-    }
-
-    if (!boundary) {
-      setBoundaryError('Please draw your farm boundary polygon on the map before saving.');
-      hasClientError = true;
-    } else {
-      const boundaryValidation = validateGeoPolygon(boundary);
-      if (!boundaryValidation.isValid) {
-        setBoundaryError(boundaryValidation.error || 'The drawn boundary polygon is invalid.');
-        hasClientError = true;
-      }
-    }
-
-    if (hasClientError) {
       return;
     }
 
     setSubmitting(true);
     try {
-      await createFarmApi({
+      const createdFarm = await createFarmApi({
         name: name.trim(),
         location: location.trim() || undefined,
-        boundary: boundary,
       });
 
-      setCreatedSuccess(true);
-      setTimeout(() => {
-        navigate('/farms');
-      }, 1200);
+      // Redirect user directly to Boundary tab of the new farm
+      navigate(`/farms/${createdFarm.id}?tab=boundary`);
     } catch (err: unknown) {
       const axiosError = err as {
         response?: { data?: Record<string, string[] | string> };
@@ -73,20 +45,16 @@ export const CreateFarmPage: React.FC = () => {
       if (axiosError?.response?.data) {
         const errorData = axiosError.response.data;
         if (errorData.name) {
-          setNameError(Array.isArray(errorData.name) ? errorData.name.join(' ') : String(errorData.name));
-        }
-        if (errorData.boundary) {
-          setBoundaryError(
-            Array.isArray(errorData.boundary)
-              ? errorData.boundary.join(' ')
-              : String(errorData.boundary)
+          setNameError(
+            Array.isArray(errorData.name)
+              ? errorData.name.join(' ')
+              : String(errorData.name)
           );
-        }
-        if (!errorData.name && !errorData.boundary) {
-          setGeneralError(JSON.stringify(errorData));
+        } else {
+          setGeneralError('Failed to create farm. Please review entered details.');
         }
       } else {
-        setGeneralError('Failed to register farm. Please ensure the backend is available.');
+        setGeneralError('Failed to create farm. Please ensure backend server is reachable.');
       }
     } finally {
       setSubmitting(false);
@@ -94,8 +62,8 @@ export const CreateFarmPage: React.FC = () => {
   };
 
   return (
-    <div style={{ maxWidth: '820px', margin: '0 auto' }}>
-      {/* Back link */}
+    <div style={{ maxWidth: '640px', margin: '0 auto' }}>
+      {/* Back to Farms Navigation */}
       <div style={{ marginBottom: '1.25rem' }}>
         <Link
           to="/farms"
@@ -105,6 +73,7 @@ export const CreateFarmPage: React.FC = () => {
             gap: '0.4rem',
             color: 'var(--text-secondary)',
             fontSize: '0.875rem',
+            minHeight: '36px',
           }}
         >
           <ArrowLeft size={16} />
@@ -117,8 +86,8 @@ export const CreateFarmPage: React.FC = () => {
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
             <div
               style={{
-                width: '38px',
-                height: '38px',
+                width: '42px',
+                height: '42px',
                 borderRadius: 'var(--radius-md)',
                 backgroundColor: 'var(--brand-accent-tint)',
                 color: 'var(--brand-primary)',
@@ -127,172 +96,95 @@ export const CreateFarmPage: React.FC = () => {
                 justifyContent: 'center',
               }}
             >
-              <Trees size={22} />
+              <Sprout size={24} />
             </div>
             <div>
-              <h2 style={{ fontSize: '1.25rem', margin: 0 }}>Register New Farm</h2>
-              <p style={{ fontSize: '0.8125rem', margin: 0 }}>
-                Record farm metadata into your Land Information Management System
+              <h2 style={{ fontSize: '1.25rem', margin: 0 }}>Create Farm</h2>
+              <p style={{ fontSize: '0.8125rem', margin: 0, color: 'var(--text-secondary)' }}>
+                Step 1: Register farm name and location
               </p>
             </div>
           </div>
         </div>
 
         <div className="card-body">
-          {createdSuccess && (
-            <div className="alert alert-success">
-              <CheckCircle2 size={18} />
-              <span>Farm registered successfully! Redirecting to farm list...</span>
-            </div>
-          )}
-
           {generalError && (
-            <div className="alert alert-danger">
+            <div className="alert alert-danger" style={{ marginBottom: '1.25rem' }}>
               <AlertCircle size={18} />
               <span>{generalError}</span>
             </div>
           )}
 
           <form onSubmit={handleSubmit}>
-            {/* Basic Farm Information */}
-            <div className="form-group">
-              <label className="form-label" htmlFor="farmName">
+            {/* Farm Name */}
+            <div className="form-group" style={{ marginBottom: '1.5rem' }}>
+              <label className="form-label" htmlFor="farmName" style={{ fontWeight: 600 }}>
                 Farm Name <span style={{ color: 'var(--color-danger)' }}>*</span>
               </label>
               <input
                 id="farmName"
                 type="text"
                 className="form-control"
-                placeholder="e.g. Green Valley Agro Farm"
+                style={{ minHeight: '44px', fontSize: '1rem' }}
+                placeholder="e.g. Green Valley Farm"
                 value={name}
                 onChange={(e) => {
                   setName(e.target.value);
                   if (nameError) setNameError(null);
                 }}
-                disabled={submitting || createdSuccess}
+                disabled={submitting}
                 autoFocus
               />
-              {nameError && <div className="form-error">{nameError}</div>}
-              <div className="form-hint">A recognizable title for this land parcel.</div>
+              {nameError && <div className="form-error" style={{ color: 'var(--color-danger)', fontSize: '0.8125rem', marginTop: '0.35rem' }}>{nameError}</div>}
+              <div className="form-hint" style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', marginTop: '0.35rem' }}>
+                A recognizable name for your agricultural land.
+              </div>
             </div>
 
-            <div className="form-group">
-              <label className="form-label" htmlFor="farmLocation">
+            {/* Farm Location */}
+            <div className="form-group" style={{ marginBottom: '2rem' }}>
+              <label className="form-label" htmlFor="farmLocation" style={{ fontWeight: 600 }}>
                 Location
               </label>
               <div style={{ position: 'relative' }}>
+                <MapPin
+                  size={18}
+                  style={{
+                    position: 'absolute',
+                    left: '12px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    color: 'var(--text-muted)',
+                  }}
+                />
                 <input
                   id="farmLocation"
                   type="text"
                   className="form-control"
-                  placeholder="e.g. Chak 42-SB, Sargodha or Islamabad"
+                  style={{ paddingLeft: '2.4rem', minHeight: '44px', fontSize: '1rem' }}
+                  placeholder="e.g. Chak 42-SB, Sargodha or District/Tehsil"
                   value={location}
                   onChange={(e) => setLocation(e.target.value)}
-                  disabled={submitting || createdSuccess}
+                  disabled={submitting}
                 />
               </div>
-              <div className="form-hint">
-                District, tehsil, mouza, or address of the agricultural land.
+              <div className="form-hint" style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', marginTop: '0.35rem' }}>
+                District, tehsil, village, or address of the land parcel.
               </div>
             </div>
 
-            {/* Boundary / Leaflet Map Section */}
-            <div style={{ marginTop: '2rem', marginBottom: '2rem' }}>
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  marginBottom: '0.75rem',
-                }}
-              >
-                <div>
-                  <h4 style={{ fontSize: '1rem', color: 'var(--text-primary)', margin: 0 }}>
-                    Farm Boundary Mapping <span style={{ color: 'var(--color-danger)' }}>*</span>
-                  </h4>
-                  <p style={{ fontSize: '0.8125rem', margin: 0 }}>
-                    Outline the GIS polygon boundary around your agricultural holding parcel
-                  </p>
-                </div>
-                <span className="badge badge-success">
-                  <MapPin size={12} /> Interactive GIS
-                </span>
-              </div>
-
-              {/* Instructions Callout */}
-              <div
-                style={{
-                  backgroundColor: 'var(--brand-accent-tint)',
-                  border: '1px solid #bbf7d0',
-                  borderRadius: 'var(--radius-md)',
-                  padding: '0.75rem 1rem',
-                  marginBottom: '0.75rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.6rem',
-                  fontSize: '0.8125rem',
-                  color: 'var(--brand-primary)',
-                }}
-              >
-                <div style={{ fontWeight: 600 }}>Instructions:</div>
-                <div>
-                  Click <strong>Draw Polygon</strong> &rarr; Click corners around your land &rarr; Double-click or click first point to close &rarr; Save Farm.
-                </div>
-              </div>
-
-              {/* Modular Leaflet Map Component */}
-              <FarmMap
-                initialBoundary={boundary}
-                onBoundaryChange={(newBoundary) => {
-                  setBoundary(newBoundary);
-                  if (boundaryError) setBoundaryError(null);
-                }}
-                height={460}
-              />
-
-              {boundaryError && (
-                <div
-                  className="alert alert-danger"
-                  style={{ marginTop: '0.75rem', marginBottom: '0.5rem' }}
-                >
-                  <AlertCircle size={16} />
-                  <span>{boundaryError}</span>
-                </div>
-              )}
-
-              {/* GeoJSON inspection accordion / debug viewer if boundary exists */}
-              {boundary && (
-                <div style={{ marginTop: '0.75rem' }}>
-                  <details
-                    style={{
-                      background: '#f8faf9',
-                      border: '1px solid var(--border-subtle)',
-                      borderRadius: 'var(--radius-sm)',
-                      padding: '0.5rem 0.75rem',
-                      fontSize: '0.75rem',
-                    }}
-                  >
-                    <summary style={{ cursor: 'pointer', fontWeight: 600, color: 'var(--text-secondary)' }}>
-                      Inspect Generated GeoJSON Payload ({boundary.coordinates[0].length} coordinate vertices)
-                    </summary>
-                    <pre
-                      style={{
-                        margin: '0.5rem 0 0',
-                        padding: '0.5rem',
-                        backgroundColor: '#ffffff',
-                        border: '1px solid var(--border-subtle)',
-                        borderRadius: '4px',
-                        maxHeight: '140px',
-                        overflowY: 'auto',
-                        fontFamily: 'var(--font-mono)',
-                        color: 'var(--text-primary)',
-                      }}
-                    >
-                      {JSON.stringify(boundary, null, 2)}
-                    </pre>
-                  </details>
-                </div>
-              )}
+            <div
+              style={{
+                backgroundColor: 'var(--bg-surface-subtle)',
+                borderRadius: 'var(--radius-md)',
+                padding: '0.875rem 1rem',
+                border: '1px solid var(--border-subtle)',
+                marginBottom: '1.75rem',
+                fontSize: '0.8125rem',
+                color: 'var(--text-secondary)',
+              }}
+            >
+              ℹ️ After creating this farm, you will be redirected to the <strong>Boundary</strong> tab where you can outline your farm boundaries on the interactive map.
             </div>
 
             {/* Action buttons */}
@@ -306,23 +198,24 @@ export const CreateFarmPage: React.FC = () => {
                 borderTop: '1px solid var(--border-subtle)',
               }}
             >
-              <Link to="/farms" className="btn btn-secondary">
+              <Link to="/farms" className="btn btn-secondary" style={{ minHeight: '44px' }}>
                 Cancel
               </Link>
               <button
                 type="submit"
                 className="btn btn-primary"
-                disabled={submitting || createdSuccess}
+                disabled={submitting}
+                style={{ minHeight: '44px', paddingLeft: '1.5rem', paddingRight: '1.5rem' }}
               >
                 {submitting ? (
                   <>
                     <div className="spinner spinner-sm" />
-                    <span>Saving Farm...</span>
+                    <span>Creating Farm...</span>
                   </>
                 ) : (
                   <>
-                    <Save size={16} />
-                    <span>Save Farm</span>
+                    <Save size={18} />
+                    <span>Create Farm & Draw Boundary</span>
                   </>
                 )}
               </button>

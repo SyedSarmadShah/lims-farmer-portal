@@ -11,8 +11,6 @@ import { DashboardPage } from './pages/dashboard/DashboardPage';
 import { FarmsListPage } from './pages/farms/FarmsListPage';
 import { CreateFarmPage } from './pages/farms/CreateFarmPage';
 import { FarmDetailPage } from './pages/farms/FarmDetailPage';
-import { WeatherPage } from './pages/placeholders/WeatherPage';
-import { HealthPage } from './pages/placeholders/HealthPage';
 import { ProfilePage } from './pages/profile/ProfilePage';
 
 export const App: React.FC = () => {
@@ -33,9 +31,11 @@ export const App: React.FC = () => {
               <Route path="/farms" element={<FarmsListPage />} />
               <Route path="/farms/new" element={<CreateFarmPage />} />
               <Route path="/farms/:id" element={<FarmDetailPage />} />
-              <Route path="/weather" element={<WeatherPage />} />
-              <Route path="/health" element={<HealthPage />} />
               <Route path="/profile" element={<ProfilePage />} />
+
+              {/* Backward-compatibility redirects for removed routes */}
+              <Route path="/weather" element={<Navigate to="/dashboard" replace />} />
+              <Route path="/health" element={<Navigate to="/farms" replace />} />
             </Route>
           </Route>
 

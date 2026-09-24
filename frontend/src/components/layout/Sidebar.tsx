@@ -3,8 +3,6 @@ import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard,
   Sprout,
-  Satellite,
-  CloudSun,
   User as UserIcon,
   LogOut,
   X,
@@ -32,22 +30,16 @@ export const Sidebar: React.FC<SidebarProps> = ({ mobileOpen, onClose }) => {
       icon: Sprout,
     },
     {
-      to: '/health',
-      label: 'Crop Health',
-      icon: Satellite,
-    },
-    {
-      to: '/weather',
-      label: 'Weather',
-      icon: CloudSun,
-      badge: 'Soon',
-    },
-    {
       to: '/profile',
       label: 'My Profile',
       icon: UserIcon,
     },
   ];
+
+  const handleLogout = () => {
+    onClose();
+    logout();
+  };
 
   return (
     <>
@@ -77,9 +69,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ mobileOpen, onClose }) => {
                 border: 'none',
                 color: '#ffffff',
                 cursor: 'pointer',
+                padding: '0.4rem',
               }}
+              aria-label="Close menu"
             >
-              <X size={20} />
+              <X size={22} />
             </button>
           )}
         </div>
@@ -99,10 +93,27 @@ export const Sidebar: React.FC<SidebarProps> = ({ mobileOpen, onClose }) => {
               >
                 <Icon size={18} />
                 <span>{item.label}</span>
-                {item.badge && <span className="nav-badge">{item.badge}</span>}
               </NavLink>
             );
           })}
+
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="nav-link-item btn-nav-logout"
+            style={{
+              width: '100%',
+              background: 'none',
+              border: 'none',
+              textAlign: 'left',
+              cursor: 'pointer',
+              color: 'rgba(255, 255, 255, 0.8)',
+              marginTop: '0.5rem',
+            }}
+          >
+            <LogOut size={18} />
+            <span>Logout</span>
+          </button>
         </nav>
 
         <div className="sidebar-footer">
@@ -119,7 +130,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ mobileOpen, onClose }) => {
           </div>
           <button
             className="btn-sidebar-logout"
-            onClick={logout}
+            onClick={handleLogout}
             title="Log Out"
             aria-label="Log Out"
           >
@@ -130,3 +141,4 @@ export const Sidebar: React.FC<SidebarProps> = ({ mobileOpen, onClose }) => {
     </>
   );
 };
+

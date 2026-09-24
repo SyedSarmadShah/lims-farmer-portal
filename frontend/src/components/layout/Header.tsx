@@ -18,16 +18,12 @@ export const Header: React.FC<HeaderProps> = ({ onMenuToggle }) => {
       case '/farms':
         return { title: 'My Farms', sub: 'View and manage your registered farms' };
       case '/farms/new':
-        return { title: 'Add My Farm', sub: 'Add farm details and mark boundaries' };
-      case '/weather':
-        return { title: 'Weather', sub: 'Local forecasts and weather updates for your fields' };
-      case '/health':
-        return { title: 'Crop Health', sub: 'Monitor crop vegetation condition with satellite data' };
+        return { title: 'Create Farm', sub: 'Register farm name and location' };
       case '/profile':
         return { title: 'My Profile', sub: 'Farmer account details' };
       default:
         if (location.pathname.startsWith('/farms/')) {
-          return { title: 'Farm Details', sub: 'Farm information and boundary' };
+          return { title: 'Farm Detail', sub: 'Boundary, Map, Satellite & NDVI' };
         }
         return { title: 'LIMS Farmer Portal', sub: 'Land Information & Management System' };
     }
@@ -43,7 +39,7 @@ export const Header: React.FC<HeaderProps> = ({ onMenuToggle }) => {
           onClick={onMenuToggle}
           aria-label="Toggle navigation menu"
         >
-          <Menu size={20} />
+          <Menu size={22} />
         </button>
         <div className="header-title-wrapper">
           <h2 className="header-title">{title}</h2>
@@ -53,9 +49,9 @@ export const Header: React.FC<HeaderProps> = ({ onMenuToggle }) => {
 
       <div className="header-right">
         {location.pathname !== '/farms/new' && (
-          <Link to="/farms/new" className="btn btn-primary btn-sm">
+          <Link to="/farms/new" className="btn btn-primary btn-sm btn-header-add">
             <PlusCircle size={16} />
-            <span>+ Add My Farm</span>
+            <span>+ Create Farm</span>
           </Link>
         )}
 
