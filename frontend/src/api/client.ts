@@ -11,16 +11,13 @@ export const getStoredRefreshToken = (): string | null => {
   return localStorage.getItem(REFRESH_TOKEN_KEY);
 };
 
-/**
- * Robustly sets Authorization header on AxiosHeaders instance or plain header object
- */
 const setAuthHeader = (headers: unknown, token: string): void => {
   if (!headers) return;
-  const h = headers as Record<string, unknown> & { set?: (k: string, v: string) => void };
+  const h = headers as Record<string, unknown> & { set?: (key: string, value: string) => void };
   if (typeof h.set === 'function') {
     h.set('Authorization', `Bearer ${token}`);
   } else {
-    h['Authorization'] = `Bearer ${token}`;
+    h.Authorization = `Bearer ${token}`;
   }
 };
 
@@ -37,30 +34,28 @@ export const clearStoredTokens = (): void => {
   localStorage.removeItem(REFRESH_TOKEN_KEY);
   if (apiClient.defaults.headers.common) {
     const common = apiClient.defaults.headers.common as Record<string, unknown> & {
-      delete?: (k: string) => void;
+      delete?: (key: string) => void;
     };
     if (typeof common.delete === 'function') {
       common.delete('Authorization');
     } else {
-      delete common['Authorization'];
+      delete common.Authorization;
     }
   }
 };
 
 export const apiClient = axios.create({
-  baseURL: '/api',
+  baseURL: import.meta.env.VITE_API_URL || '/api',
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
-// Initialize default Authorization header from localStorage on startup if present
 const initialToken = getStoredAccessToken();
 if (initialToken) {
   setAuthHeader(apiClient.defaults.headers.common, initialToken);
 }
 
-// Request interceptor: attach bearer token using proper AxiosHeaders.set API
 apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     const token = getStoredAccessToken();
@@ -75,7 +70,6 @@ apiClient.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Response interceptor: handle 401 & token refresh
 let isRefreshing = false;
 let failedQueue: Array<{
   resolve: (token: string) => void;
@@ -100,9 +94,7 @@ apiClient.interceptors.response.use(
       _retry?: boolean;
     }) | undefined;
 
-    // If 401 and request has not already been retried
     if (error.response?.status === 401 && originalRequest && !originalRequest._retry) {
-      // Do not attempt refresh if the failed request was already login or refresh endpoint
       if (
         originalRequest.url?.includes('/accounts/login/') ||
         originalRequest.url?.includes('/accounts/token/refresh/')
@@ -118,7 +110,6 @@ apiClient.interceptors.response.use(
       }
 
       if (isRefreshing) {
-        // Queue this request while refresh is in progress
         return new Promise<string>((resolve, reject) => {
           failedQueue.push({ resolve, reject });
         })
@@ -134,8 +125,8 @@ apiClient.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        const refreshResponse = await axios.post<{ access: string }>(
-          '/api/accounts/token/refresh/',
+        const refreshResponse = await apiClient.post<{ access: string }>(
+          '/accounts/token/refresh/',
           { refresh: refreshToken },
           { headers: { 'Content-Type': 'application/json' } }
         );
